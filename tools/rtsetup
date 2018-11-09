@@ -1,0 +1,142 @@
+#! /usr/bin/env bash
+
+#================================================================
+#   Copyright (C) 2018 . All rights reserved.
+#   
+#   File Name    ： rtnet_setup
+#   Author       ： sylar.liu
+#   E-mail       ： sylar_liu65@163.com
+#   Created Time ： 2018/11/07 21:26:15
+#   Description  ： Setup a NIC as rteth0 for rtnet
+#
+#================================================================
+
+# Colors of Ternimal
+VERT="\\033[1;32m"
+NORMAL="\\033[0;39m"
+NC='\033[0m'
+ROUGE="\\033[1;31m"
+ROSE="\\033[1;35m"
+BLUE="\\033[1;34m"
+BLANC="\\033[0;02m"
+BLANCLAIR="\\033[1;08m"
+JAUNE="\\033[1;33m"
+CYAN="\\033[1;36m""]"
+
+RT_IFACE="rteth0"
+SUPPORTED_RT_DRIVERS="rt_e1000e rt_e1000 rt_eepro100"
+NIC=""
+NIC_PCI_ADDRESS=""
+NIC_DRIVER=""
+NIC_RT_DRIVER=""
+
+xeno_config="/usr/xenomai/bin/xeno-config"
+if [ ! -e $xeno_config ]; then
+  	echo -e "$ROUGE""The command /usr/xenomai/bin/xeno-config is not found, Install Xenomai first.""$NORMAL"
+	exit 1
+fi
+XENOMAI_VERSION=`$xeno_config --version | cut -d . -f 1`
+if [ $XENOMAI_VERSION -eq 2 ]; then
+	RTNET_CONF_FILE="/usr/local/rtnet/etc/rtnet.conf"
+else
+    RTNET_CONF_FILE="/usr/xenomai/etc/rtnet.conf"
+fi
+echo -e "$VERT""Xenomai$XENOMAI_VERSION found, default configuration file for RTnet is: $RTNET_CONF_FILE""$NORMAL"
+
+ChooseNic() {
+	NICs=`ls /sys/class/net`
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		echo -e "$ROUGE""Can not get NICs, exit...""NORMAL"
+		exit 1
+	fi
+	echo "NICs:"
+	echo -e "$VERT""$NICs" "$NORMAL"
+	for nic in $NICs; do
+	  	if [ $nic = $RT_IFACE ]; then
+		  	echo -e "$ROUGE""$RT_IFACE already exist, exit...""$NORMAL"
+			exit 1
+		fi
+	done
+
+	is_available="false"
+	while read -p "Enter a NIC for rtnet:" NIC; do
+		if [ -z "$NIC" ]; then
+		  	echo "exit"
+			exit 0
+		fi
+
+		for nic in $NICs; do
+			if [ $nic = $NIC  ]; then
+				is_available="true"
+				break
+			fi
+		done
+
+		if [ $is_available = "false"  ]; then
+			echo -e "$ROUGE""$NIC is not a available NIC,  enter again: ""$NORMAL"
+		else
+			break
+		fi
+	done
+}
+
+GetNicPciAddress() {
+	NIC_PCI_ADDRESS=`lshw -businfo -C network | grep $nic | cut -d " " -f 1 | cut -d @ -f 2`
+	rc=$?
+	if [ $rc -ne 0 ]; then
+	  	echo -e "$ROUGE""Can not get PCI Address of $NIC, exit...""$NORMAL"
+		exit 1
+	fi
+}
+
+GetNicDriver() {
+	NIC_DRIVER=`ethtool -i $nic | grep driver | cut -d " " -f 2`
+	rc=$?
+	if [ $rc -ne 0 ]; then
+	  	echo -e "$ROUGE""Can not get driver of $NIC, exit...""$NORMAL"
+		exit 1
+	fi
+}
+
+GetNicRtDirver() {
+	is_available="false"
+	for rt_driver in $SUPPORTED_RT_DRIVERS; do
+		if [ "rt_"$NIC_DRIVER = $rt_driver  ]; then
+			NIC_RT_DRIVER=$rt_driver
+			is_available="true"
+			break
+		fi
+	done
+
+	if [ $is_available = "false"  ]; then
+	    echo -e "$ROUGE""Driver of $NIC is : $NIC_DRIVER""$NORMAL"
+		echo -e "$ROUGE""No rt driver for $NIC, exit...""$NORMAL"
+		exit 1
+	fi
+}
+
+ShowMessage() {
+  	echo -e "NIC: ""$VERT""$NIC""$NORMAL"
+	echo -e "PCI Address: ""$VERT""$NIC_PCI_ADDRESS""$NORMAL"
+	echo -e "Driver: ""$VERT""$NIC_DRIVER""$NORMAL"
+	echo -e "RT_Driver: ""$VERT""$NIC_RT_DRIVER""$NORMAL"
+}
+
+WriteToConfFile() {
+	if [ ! -e $RTNET_CONF_FILE ]; then
+	  	echo -e "$ROUGE""Can not find configuration file: $RTNET_CONF_FILE, exit...""$NORMAL"
+		exit 1
+	fi
+
+	echo -e "$VERT""Write the configuration to $RTNET_CONF_FILE""$NORMAL"
+  	sed -i "s/\(^RT_DRIVER=\).*/\1\"$NIC_RT_DRIVER\"/" $RTNET_CONF_FILE
+	sed -i "s/\(^REBIND_RT_NICS=\).*/\1\"$NIC_PCI_ADDRESS\"/" $RTNET_CONF_FILE
+}
+
+ChooseNic
+GetNicPciAddress
+GetNicDriver
+GetNicRtDirver
+ShowMessage
+WriteToConfFile
