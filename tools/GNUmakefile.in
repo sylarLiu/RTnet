@@ -273,7 +273,7 @@ top_srcdir = @top_srcdir@
 OPTPROGS = $(am__append_1) $(am__append_2) $(am__append_3) \
 	$(am__append_4)
 OPTCONF = $(am__append_5)
-sbin_SCRIPTS = rtnet rtsetup
+sbin_SCRIPTS = rtnet rtsetup rt_ip_test
 nodist_sysconf_DATA = rtnet.conf
 dist_sysconf_DATA = $(OPTCONF)
 AM_CPPFLAGS = \
