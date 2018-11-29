@@ -24,7 +24,7 @@ JAUNE="\\033[1;33m"
 CYAN="\\033[1;36m""]"
 
 RT_IFACE="rteth0"
-SUPPORTED_RT_DRIVERS="rt_e1000e rt_e1000 rt_eepro100"
+SUPPORTED_RT_DRIVERS="rt_e1000e rt_e1000 rt_eepro100 rt_igb"
 NIC=""
 NIC_PCI_ADDRESS=""
 NIC_DRIVER=""
